@@ -54,9 +54,12 @@ def generate_json(tl_list, br_list):
     annotations.append(image_dict)
 
 
+class ObjectDetectionImageClassifierEvents:
+    def image_processing_started_for(self, file_name):
+        print(f'Processing {file_name}...')
+
+
 class FileSystem:
-    def __init__(self):
-        pass
 
     def list_files_in(self, source):
         return os.listdir(source)
@@ -64,6 +67,9 @@ class FileSystem:
     def write_file(self, filename, content):
         with open(filename, 'w') as f:
             f.write(content)
+
+    def join(self, path, *paths):
+        return os.path.join(path, *paths)
 
 
 class ImageAnalyzer:
@@ -87,29 +93,30 @@ class ImageAnalyzer:
 
 
 class ObjectDetectionImageClassifier:
-    def __init__(self, file_system=FileSystem(), image_analyzer=ImageAnalyzer()):
-        self.file_system = file_system
+    def __init__(self, file_system=FileSystem(), image_analyzer=ImageAnalyzer(), events=ObjectDetectionImageClassifierEvents()):
+        self.fs = file_system
         self.image_analyzer = image_analyzer
+        self.events = events
 
     def process_images(self, source, destination, result):
         global file_name, name_class, annotations, tl_list, br_list, toggle_selector
-        self.annotations_file = destination + '/' + result
+        self.annotations_file = self.fs.join(destination, result)
 
         annotations = []
         tl_list = []
         br_list = []
-        file_names = self.file_system.list_files_in(source)
+        file_names = self.fs.list_files_in(source)
         for file_name in file_names:
             if self.is_image(file_name):
-                print(f'Processing {file_name}...')
+                self.events.image_processing_started_for(file_name)
                 self.process_image(file_name, source, toggle_selector)
         print('Number of Processed Images:', len(annotations))
-        self.file_system.write_file(self.annotations_file, json.dumps(annotations))
+        self.fs.write_file(self.annotations_file, json.dumps(annotations))
 
     def process_image(self, file_name, source, toggle_selector):
         global name_class
         name_class, sep, tail = file_name.partition('_')
-        dir_file = source + '/' + file_name
+        dir_file = self.fs.join(source, file_name)
         self.image_analyzer.display_image_tool(dir_file, toggle_selector)
 
     def is_image(self, file_name):
